@@ -1,0 +1,53 @@
+import cv2
+import face_recognition
+import pickle
+import os
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import db
+from firebase_admin import  storage
+
+cred = credentials.Certificate("serviceAccountKey.json")
+firebase_admin.initialize_app(cred, {
+    'databaseURL': "https://faceattendance-192c4-default-rtdb.firebaseio.com/",
+    'storageBucket': "faceattendance-192c4.appspot.com"
+})
+
+folderpath= 'images'
+pathlist=os.listdir(folderpath)
+imglist=[]
+employeelist=[]
+for path in  pathlist:
+    imglist.append(cv2.imread(os.path.join(folderpath,path)))
+    employeelist.append(os.path.splitext(path)[0])
+    fileName = f'{folderpath}/{path}'
+    bucket = storage.bucket()
+    blob = bucket.blob(fileName)
+    blob.upload_from_filename(fileName)
+print(employeelist)
+
+def findEncodings(imglist1):
+    encodelist = []
+    for img in imglist1:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        face_encodings = face_recognition.face_encodings(img)
+        cv2.imshow("img",img)
+        cv2.waitKey(0)
+        if face_encodings:
+            encode = face_encodings[0]
+            encodelist.append(encode)
+        else:
+            print("No face found in the image.")
+    return encodelist
+print("Encoding has started")
+
+knownencodinglist=findEncodings(imglist)
+encodeListKnownWithIds = [knownencodinglist, employeelist]
+print("Encoding Complete")
+
+file = open("EncodeFile.p", 'wb')
+pickle.dump(encodeListKnownWithIds, file)
+file.close()
+print("File Saved")
+
+
